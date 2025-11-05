@@ -1,7 +1,7 @@
 extern crate apodize;
-extern crate rustfft;
 #[cfg(test)]
 extern crate rand;
+extern crate rustfft;
 
 use rustfft::num_complex::Complex;
 use rustfft::num_traits::{Float, FromPrimitive, ToPrimitive};
@@ -47,7 +47,14 @@ pub struct Params {
 }
 
 impl Params {
-    pub fn new(threshold: f64, detune: f64, attack: f64, release: f64, mix: f64, gain: f64) -> Params {
+    pub fn new(
+        threshold: f64,
+        detune: f64,
+        attack: f64,
+        release: f64,
+        mix: f64,
+        gain: f64,
+    ) -> Params {
         Params {
             threshold,
             detune,
@@ -76,13 +83,15 @@ struct Envelope {
 
 impl Envelope {
     pub fn new() -> Self {
-        Self { buf: [0.0; ENV_BUFFER_SIZE] }
+        Self {
+            buf: [0.0; ENV_BUFFER_SIZE],
+        }
     }
     pub fn push(&mut self, val: f64) {
-        for i in 0..ENV_BUFFER_SIZE-1 {
-            self.buf[i] = self.buf[i+1];
+        for i in 0..ENV_BUFFER_SIZE - 1 {
+            self.buf[i] = self.buf[i + 1];
         }
-        self.buf[ENV_BUFFER_SIZE-1] = val;
+        self.buf[ENV_BUFFER_SIZE - 1] = val;
     }
     pub fn mean(&self) -> f64 {
         let mut sum = 0.0;
@@ -224,8 +233,12 @@ impl PhaseVocoder {
             gain: 0.0,
             makeup_smooth: 1.0,
         };
-        pv.fft_scratch = vec![c64::new(0.0, 0.0); pv.forward_fft.get_outofplace_scratch_len()
-            .max(pv.backward_fft.get_outofplace_scratch_len())];
+        pv.fft_scratch = vec![
+            c64::new(0.0, 0.0);
+            pv.forward_fft
+                .get_outofplace_scratch_len()
+                .max(pv.backward_fft.get_outofplace_scratch_len())
+        ];
         pv
     }
 
@@ -296,7 +309,7 @@ impl PhaseVocoder {
         assert_eq!(input.len(), self.channels);
         assert_eq!(output.len(), self.channels);
 
-        let min_ms = 1.0/self.sample_rate;
+        let min_ms = 1.0 / self.sample_rate;
         let min_log = (min_ms).log10();
 
         // if self.mix == 0.0 {
@@ -320,18 +333,15 @@ impl PhaseVocoder {
 
         // Before the bin loop (per frame/channel) compute a stable pitch ratio:
         let pitch_ratio = 2.0_f64.powf(self.detune); // 2^(semitones/12)
-        // If you don’t track target semitones separately, derive it from your detune parameter.
-        // Avoid using the envelope-scaled `factor` for this.
 
         let ratio = pitch_ratio.max(0.25).min(4.0); // keep within [-24, +24] semitones
-        let alpha = 0.5;                             // 0=no comp, 0.5=power-ish, 1.0=area
+        let alpha = 0.5; // 0=no comp, 0.5=power-ish, 1.0=area
         let mut makeup = (1.0 / ratio).powf(alpha);
 
         let frame_sizef = self.frame_size as f64;
         let time_resf = self.time_res as f64;
         let step_size = frame_sizef / time_resf;
         while self.samples_waiting >= 2 * self.frame_size * self.channels {
-
             for _ in 0..self.time_res {
                 // Initialise the synthesis bins to empty bins.
                 // This may be removed in a future release.
@@ -348,8 +358,11 @@ impl PhaseVocoder {
                         self.fft_in[i] = c64::new(self.in_buf[chan][i] * self.window[i], 0.0);
                     }
 
-                    self.forward_fft
-                        .process_outofplace_with_scratch(&mut self.fft_in, &mut self.fft_out, &mut self.fft_scratch);
+                    self.forward_fft.process_outofplace_with_scratch(
+                        &mut self.fft_in,
+                        &mut self.fft_out,
+                        &mut self.fft_scratch,
+                    );
 
                     for i in 0..self.frame_size {
                         let x = self.fft_out[i];
@@ -370,8 +383,11 @@ impl PhaseVocoder {
                     for i in 0..self.frame_size {
                         cur_amp = self.in_buf[chan][i].abs();
                         // detect peaks
-                        if (cur_amp - self.avg_buf[chan].buf[ENV_BUFFER_SIZE-1]).abs() > self.std_dev_threshold * self.std_buf[chan].buf[ENV_BUFFER_SIZE-1] {
-                            if !self.active || (cur_amp > self.envelope && cur_amp > self.threshold) {
+                        if (cur_amp - self.avg_buf[chan].buf[ENV_BUFFER_SIZE - 1]).abs()
+                            > self.std_dev_threshold * self.std_buf[chan].buf[ENV_BUFFER_SIZE - 1]
+                        {
+                            if !self.active || (cur_amp > self.envelope && cur_amp > self.threshold)
+                            {
                                 // peak detected
                                 self.active = true;
                                 self.cur_attack = 0.0;
@@ -381,11 +397,15 @@ impl PhaseVocoder {
                                 // self.envelope = (self.envelope + cur_amp) / 2.0;
                             }
                         }
-                        let last_amp = self.env_buf[chan].buf[ENV_BUFFER_SIZE-1];
-                        self.env_buf[chan].push(cur_amp * self.influence + last_amp * (1.0 - self.influence));
+                        let last_amp = self.env_buf[chan].buf[ENV_BUFFER_SIZE - 1];
+                        self.env_buf[chan]
+                            .push(cur_amp * self.influence + last_amp * (1.0 - self.influence));
                         // self.env_buf[chan].pop_front();
                         // calculate the mean and standard deviation for this frame
-                        (self.avg_buf[chan].buf[ENV_BUFFER_SIZE-1], self.std_buf[chan].buf[ENV_BUFFER_SIZE-1]) = self.avg_buf[chan].mean_std_deviation();
+                        (
+                            self.avg_buf[chan].buf[ENV_BUFFER_SIZE - 1],
+                            self.std_buf[chan].buf[ENV_BUFFER_SIZE - 1],
+                        ) = self.avg_buf[chan].mean_std_deviation();
                         if self.active {
                             // pitch shift effect is active
                             if self.cur_attack < self.attack {
@@ -394,7 +414,11 @@ impl PhaseVocoder {
                                     factor = 1.0;
                                     // transient_factor = 1.0;
                                 } else {
-                                    let log_val = if self.cur_attack == 0.0 {0.0} else {(self.cur_attack/self.attack).log10()};
+                                    let log_val = if self.cur_attack == 0.0 {
+                                        0.0
+                                    } else {
+                                        (self.cur_attack / self.attack).log10()
+                                    };
                                     let scaled_val = (log_val - min_log) / (0.0 - min_log);
                                     factor = 1.0 - self.envelope * self.detune * scaled_val;
                                     // transient_factor = 1.0 - self.envelope * (1.0 - scaled_val);
@@ -402,7 +426,11 @@ impl PhaseVocoder {
                                 self.cur_attack += min_ms;
                             } else if self.cur_release < self.release {
                                 // release stage: pitch scale factor should trend from self.detune toward 1.0
-                                factor = 1.0 - self.envelope * self.detune * (1.0 - (10.0.powf(self.cur_release/self.release)*0.1)); 
+                                factor = 1.0
+                                    - self.envelope
+                                        * self.detune
+                                        * (1.0
+                                            - (10.0.powf(self.cur_release / self.release) * 0.1));
                                 self.cur_release += min_ms;
                                 // transient_factor = 0.0;
                             } else {
@@ -422,9 +450,9 @@ impl PhaseVocoder {
                         let frame_sizef = self.frame_size as f64;
                         let nyquist = 0.5 * self.sample_rate;
                         let bin_hz = self.sample_rate / frame_sizef;
-                        let guard_hz = 2.0 * bin_hz;      // keep a couple of bins below Nyquist
-                        let low_cut = 20.0;               // your LF cutoff
-                        let hi_cut  = nyquist - guard_hz; // HF cutoff with guard
+                        let guard_hz = 2.0 * bin_hz; // keep a couple of bins below Nyquist
+                        let low_cut = 20.0; // your LF cutoff
+                        let hi_cut = nyquist - guard_hz; // HF cutoff with guard
                         // Soft knee around the cutoffs
                         let knee = guard_hz.max(bin_hz);
                         let lo_w = ((f_out - (low_cut - knee)) / knee).clamp(0.0, 1.0);
@@ -439,20 +467,20 @@ impl PhaseVocoder {
 
                         // Optional: smooth across frames to avoid clicks if the target pitch changes
                         // Simple one-pole smoothing with ~5–10 ms time constant:
-                        let tau_s   = 0.010;
-                        let fs      = self.sample_rate;
-                        let a       = (-1.0 / (tau_s * fs)).exp();
+                        let tau_s = 0.010;
+                        let fs = self.sample_rate;
+                        let a = (-1.0 / (tau_s * fs)).exp();
                         self.makeup_smooth = a * self.makeup_smooth + (1.0 - a) * makeup;
                         makeup = self.makeup_smooth;
 
                         // Clamp to sensible dB limits (e.g., ±9 dB)
-                        let min_lin = 10_f64.powf(-9.0/20.0); // ≈ 0.3548
-                        let max_lin = 10_f64.powf( 9.0/20.0); // ≈ 2.818
+                        let min_lin = 10_f64.powf(-9.0 / 20.0); // ≈ 0.3548
+                        let max_lin = 10_f64.powf(9.0 / 20.0); // ≈ 2.818
                         makeup = makeup.clamp(min_lin, max_lin);
 
                         self.synthesis_in[chan][i].freq = f_out;
                         // self.synthesis_in[chan][i].amp = a_in * (1.0/factor.max(0.001)).clamp(0.0, 2.0) * edge_weight;
-                        self.synthesis_in[chan][i].amp  = a_in * makeup * edge_weight;
+                        self.synthesis_in[chan][i].amp = a_in * makeup * edge_weight;
 
                         // if self.analysis_out[chan][i].freq < 20.0 || self.analysis_out[chan][i].freq > self.sample_rate / 2.0 {
                         //     // frequency is outside of audible range, no need to process
@@ -495,8 +523,11 @@ impl PhaseVocoder {
                         self.fft_in[i] = c64::from_polar(amp, phase);
                     }
 
-                    self.backward_fft
-                        .process_outofplace_with_scratch(&mut self.fft_in, &mut self.fft_out, &mut self.fft_scratch);
+                    self.backward_fft.process_outofplace_with_scratch(
+                        &mut self.fft_in,
+                        &mut self.fft_out,
+                        &mut self.fft_scratch,
+                    );
 
                     // accumulate
                     for i in 0..self.frame_size {
@@ -559,25 +590,29 @@ impl PhaseVocoder {
     fn mean(&self, data: &VecDeque<f64>) -> Option<f64> {
         let sum = data.iter().sum::<f64>();
         let count = data.len();
-    
+
         match count {
             positive if positive > 0 => Some(sum / count as f64),
             _ => None,
         }
     }
-    
+
     fn std_deviation(&self, data: &VecDeque<f64>) -> Option<(f64, f64)> {
         match (self.mean(data), data.len()) {
             (Some(data_mean), count) if count > 0 => {
-                let variance: f64 = data.iter().map(|value| {
-                    let diff = data_mean - (*value as f64);
-    
-                    diff * diff
-                }).sum::<f64>() / count as f64;
-    
+                let variance: f64 = data
+                    .iter()
+                    .map(|value| {
+                        let diff = data_mean - (*value as f64);
+
+                        diff * diff
+                    })
+                    .sum::<f64>()
+                    / count as f64;
+
                 Some((data_mean, variance.sqrt()))
-            },
-            _ => None
+            }
+            _ => None,
         }
     }
 }
@@ -646,8 +681,8 @@ fn identity_transform_reconstructs_original_data_hat_function() {
 
 #[test]
 fn identity_transform_reconstructs_original_data_random_data() {
-    use rand::{Rng, SeedableRng};
     use rand::rngs::SmallRng;
+    use rand::{Rng, SeedableRng};
     let mut rng = SmallRng::seed_from_u64(1);
     let mut input_samples = [0.0; 16384];
     rng.fill(&mut input_samples[..]);
