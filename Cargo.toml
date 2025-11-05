@@ -1,0 +1,33 @@
+[package]
+name = "convergence"
+version = "0.1.0"
+authors = ["Ian Young <ian@duffrecords.com>"]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+apodize = "1.0.0"
+dirs = "3.0.2"
+iterpipes = "0.2.0"
+lv2 = { git = "https://github.com/davemollen/rust-lv2.git", branch="master" }
+realfft = "3.3.0"
+regex = "1.5.4"
+rustfft = "6.1.0"
+num-complex = "0.4.3"
+pvoc = "0.1.7"
+wav = "1.0.0"
+
+[dev-dependencies]
+approx = "0.3.2"
+
+[dev-dependencies.rand]
+version = "0.8.3"
+features = ["small_rng"]
+
+[package.metadata.lv2]
+name = "Convergence"
+class = "Effect"
+maker = "Ian Young"
+
+[lib]
+crate-type = ["cdylib"]
