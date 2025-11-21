@@ -28,7 +28,10 @@ jobs:
           override: true # Override any existing Rust toolchain settings
 
       - name: Build project
-        run: cargo build --release # Build the release version of the project
+        # Build the release version of the project
+        run: |
+          cargo build --release
+          ls -l target/release
 
       # Upload build artifacts for Linux x86_64 platform
       - name: Upload artifact (Linux)
