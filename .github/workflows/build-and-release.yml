@@ -28,10 +28,7 @@ jobs:
           override: true # Override any existing Rust toolchain settings
 
       - name: Build project
-        # Build the release version of the project
-        run: |
-          cargo build --release
-          ls -l target/release
+        run: cargo build --release # Build the release version of the project
 
       # Upload build artifacts for Linux x86_64 platform
       - name: Upload artifact (Linux)
@@ -71,7 +68,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-latest-convergence
-          path: target/release/libconvergence.dll
+          path: target/release/convergence.dll
 
       # Upload build artifacts for Windows aarch64 platform
       - name: Upload artifact (Windows aarch64)
@@ -79,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-latest-convergence-aarch64
-          path: target/release/libconvergence.dll
+          path: target/release/convergence.dll
 
   release:
     permissions:
